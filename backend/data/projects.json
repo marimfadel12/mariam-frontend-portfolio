@@ -1,0 +1,32 @@
+[
+  {
+    "id": "lumea",
+    "title": "LUMÉA Accessories",
+    "category": "Full Stack",
+    "description": "A modern accessories store with a React storefront and an Express backend for products and admin operations.",
+    "tech": ["React", "Node.js", "Express", "SQLite"],
+    "featured": true,
+    "github": "https://github.com/marimfadel12/lumea-accessories-store",
+    "demo": "#"
+  },
+  {
+    "id": "eventora",
+    "title": "Eventora",
+    "category": "Frontend",
+    "description": "A clean event-booking experience focused on clear information, responsive layouts, and a smooth confirmation flow.",
+    "tech": ["HTML", "CSS", "JavaScript"],
+    "featured": true,
+    "github": "https://github.com/Hodakhalid/Eventora",
+    "demo": "#"
+  },
+  {
+    "id": "responsive-portfolio",
+    "title": "Responsive Portfolio",
+    "category": "Frontend",
+    "description": "A responsive personal portfolio with a dark visual system, reusable sections, and mobile-first behavior.",
+    "tech": ["HTML", "CSS", "Responsive Design"],
+    "featured": true,
+    "github": "https://github.com/marimfadel12/responsive-landing",
+    "demo": "#"
+  }
+]
