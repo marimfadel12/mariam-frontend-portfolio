@@ -139,6 +139,4 @@ app.post("/api/contact", async (req, res) => {
   res.status(201).json({ message: "Message sent successfully." });
 });
 
-app.listen(PORT, () => {
-  console.log(`Portfolio API running on http://localhost:${PORT}`);
-});
+export default app;
