@@ -1,3 +1,4 @@
+
 import express from "express";
 import cors from "cors";
 import fs from "node:fs/promises";
@@ -9,13 +10,14 @@ import "dotenv/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
 const DATA_DIR = path.join(__dirname, "../data");
 const PROJECTS_FILE = path.join(DATA_DIR, "projects.json");
-const MESSAGES_FILE = path.join(DATA_DIR, "messages.json");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 const ADMIN_KEY = process.env.ADMIN_KEY || "dev-admin-key";
+
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -39,104 +41,182 @@ function requireAdmin(req, res, next) {
   if (req.headers["x-admin-key"] !== ADMIN_KEY) {
     return res.status(401).json({ message: "Unauthorized" });
   }
+
   next();
 }
 
+// Health check
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, service: "mariam-portfolio-api" });
+  res.json({
+    ok: true,
+    service: "mariam-portfolio-api",
+  });
 });
 
+// Get projects
 app.get("/api/projects", async (_req, res) => {
   try {
     const projects = await readJson(PROJECTS_FILE);
     res.json(projects);
-  } catch {
-    res.status(500).json({ message: "Could not load projects." });
+  } catch (error) {
+    console.error("Get projects error:", error);
+
+    res.status(500).json({
+      message: "Could not load projects.",
+    });
   }
 });
 
+// Add project
 app.post("/api/projects", requireAdmin, async (req, res) => {
-  const { title, category, description, tech = [], github = "#", demo = "#", featured = false } = req.body;
+  try {
+    const {
+      title,
+      category,
+      description,
+      tech = [],
+      github = "#",
+      demo = "#",
+      featured = false,
+    } = req.body;
 
-  if (!title || !description) {
-    return res.status(400).json({ message: "Title and description are required." });
+    if (!title || !description) {
+      return res.status(400).json({
+        message: "Title and description are required.",
+      });
+    }
+
+    const projects = await readJson(PROJECTS_FILE);
+
+    const project = {
+      id: crypto.randomUUID(),
+      title,
+      category,
+      description,
+      tech,
+      featured,
+      github,
+      demo,
+    };
+
+    projects.push(project);
+    await writeJson(PROJECTS_FILE, projects);
+
+    res.status(201).json(project);
+  } catch (error) {
+    console.error("Add project error:", error);
+
+    res.status(500).json({
+      message: "Could not add project.",
+    });
   }
-
-  const projects = await readJson(PROJECTS_FILE);
-  const project = {
-    id: crypto.randomUUID(),
-    title,
-    category,
-    description,
-    tech,
-    featured,
-    github,
-    demo
-  };
-
-  projects.push(project);
-  await writeJson(PROJECTS_FILE, projects);
-  res.status(201).json(project);
 });
 
+// Update project
 app.put("/api/projects/:id", requireAdmin, async (req, res) => {
-  const projects = await readJson(PROJECTS_FILE);
-  const index = projects.findIndex((project) => project.id === req.params.id);
+  try {
+    const projects = await readJson(PROJECTS_FILE);
 
-  if (index === -1) {
-    return res.status(404).json({ message: "Project not found." });
+    const index = projects.findIndex(
+      (project) => project.id === req.params.id
+    );
+
+    if (index === -1) {
+      return res.status(404).json({
+        message: "Project not found.",
+      });
+    }
+
+    projects[index] = {
+      ...projects[index],
+      ...req.body,
+      id: projects[index].id,
+    };
+
+    await writeJson(PROJECTS_FILE, projects);
+
+    res.json(projects[index]);
+  } catch (error) {
+    console.error("Update project error:", error);
+
+    res.status(500).json({
+      message: "Could not update project.",
+    });
   }
-
-  projects[index] = { ...projects[index], ...req.body, id: projects[index].id };
-  await writeJson(PROJECTS_FILE, projects);
-  res.json(projects[index]);
 });
 
+// Delete project
 app.delete("/api/projects/:id", requireAdmin, async (req, res) => {
-  const projects = await readJson(PROJECTS_FILE);
-  const next = projects.filter((project) => project.id !== req.params.id);
+  try {
+    const projects = await readJson(PROJECTS_FILE);
 
-  if (next.length === projects.length) {
-    return res.status(404).json({ message: "Project not found." });
+    const next = projects.filter(
+      (project) => project.id !== req.params.id
+    );
+
+    if (next.length === projects.length) {
+      return res.status(404).json({
+        message: "Project not found.",
+      });
+    }
+
+    await writeJson(PROJECTS_FILE, next);
+
+    res.json({
+      message: "Project deleted.",
+    });
+  } catch (error) {
+    console.error("Delete project error:", error);
+
+    res.status(500).json({
+      message: "Could not delete project.",
+    });
   }
-
-  await writeJson(PROJECTS_FILE, next);
-  res.json({ message: "Project deleted." });
 });
 
+// Contact form
 app.post("/api/contact", async (req, res) => {
-  const { name, email, message } = req.body;
+  try {
+    const { name, email, message } = req.body;
 
-  if (!name?.trim() || !email?.trim() || !message?.trim()) {
-    return res.status(400).json({ message: "Name, email and message are required." });
+    if (
+      !name?.trim() ||
+      !email?.trim() ||
+      !message?.trim()
+    ) {
+      return res.status(400).json({
+        message: "Name, email and message are required.",
+      });
+    }
+
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: process.env.EMAIL_TO,
+      replyTo: email.trim(),
+      subject: "New message from your portfolio",
+      text:
+        "Name: " +
+        name.trim() +
+        "\nEmail: " +
+        email.trim() +
+        "\n\nMessage:\n" +
+        message.trim(),
+    });
+
+    res.status(201).json({
+      message: "Message sent successfully.",
+    });
+  } catch (error) {
+    console.error("Contact form error:", error);
+
+    res.status(500).json({
+      message: "Could not send message. Please try again later.",
+    });
   }
-
-  const messages = await readJson(MESSAGES_FILE);
-
-  messages.push({
-    id: crypto.randomUUID(),
-    name: name.trim(),
-    email: email.trim(),
-    message: message.trim(),
-    createdAt: new Date().toISOString()
-  });
-
-  await writeJson(MESSAGES_FILE, messages);
-
-  await transporter.sendMail({
-  from: process.env.EMAIL_USER,
-  to: process.env.EMAIL_TO,
-  subject: "New message from your portfolio",
-  text:
-    "Name: " +
-    name.trim() +
-    "\nEmail: " +
-    email.trim() +
-    "\n\nMessage:\n" +
-    message.trim(),
 });
 
-  res.status(201).json({ message: "Message sent successfully." });
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
 
 export default app;
